@@ -11,6 +11,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Free Disk Space
+        run: |
+          echo "=== Диск ДО очистки ==="
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /usr/share/swift
+          sudo apt-get clean
+          echo "=== Диск ПОСЛЕ очистки ==="
+          df -h
+
       - name: Install dependencies
         run: |
           sudo apt update
@@ -256,7 +269,6 @@ jobs:
           mkdir -p files/etc
           
           # Write script to rc.local
-          # Using single quotes 'EOF' ensures special characters do not break syntax
           cat << 'EOF' > files/etc/rc.local
           #!/bin/sh
 
@@ -270,7 +282,6 @@ jobs:
           done
 
           if [ -n "$REAL_PATH" ]; then
-              # Strict cleanup of possible duplicate interfaces
               for r in $(uci show wireless | grep =wifi-device | cut -d. -f2 | cut -d= -f1); do
                   if [ "$r" != "radio0" ]; then uci delete wireless.$r; fi
               done
@@ -278,22 +289,18 @@ jobs:
                   if [ "$iface" != "default_radio0" ]; then uci delete wireless.$iface; fi
               done
 
-              # Correct configuration for the main radio device
               uci set wireless.radio0.type='mac80211'
               uci set wireless.radio0.path="$REAL_PATH"
               uci set wireless.radio0.disabled='0'
               uci set wireless.default_radio0.device="radio0"
               uci commit wireless
               
-              # Send Wi-Fi reload to background with a slight delay
-              # ensuring the netifd system manager has fully booted
               (sleep 4; wifi reload) &
           fi
 
           exit 0
           EOF
           
-          # Make the script executable
           chmod +x files/etc/rc.local
           
           echo "=== Checking created rc.local ==="
